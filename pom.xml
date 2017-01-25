@@ -8,5 +8,20 @@
     <artifactId>sbn</artifactId>
     <version>1.0-SNAPSHOT</version>
 
+    <dependencies>
+        <dependency>
+            <groupId>org.twitter4j</groupId>
+            <artifactId>twitter4j-core</artifactId>
+            <version>[4.0,)</version>
+        </dependency>
+
+        <!-- https://mvnrepository.com/artifact/org.twitter4j/twitter4j-stream -->
+        <dependency>
+            <groupId>org.twitter4j</groupId>
+            <artifactId>twitter4j-stream</artifactId>
+            <version>4.0.6</version>
+        </dependency>
+    </dependencies>
+
 
 </project>
