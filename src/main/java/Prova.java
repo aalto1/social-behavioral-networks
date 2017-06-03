@@ -25,7 +25,7 @@ public class Prova {
             }
             counter2 += counter;
 
-            System.out.println(counter2*1.0/(lunghezza*i) +" : " + 1.0/(lunghezza));
+            System.out.println(counter2 +" : " + Math.log(lunghezza)*i);
         }
 
     }
