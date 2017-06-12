@@ -1,0 +1,13 @@
+<component name="libraryTable">
+  <library name="Maven: it.stilo:G:1.0.0-PUBLIC">
+    <CLASSES>
+      <root url="jar://$MAVEN_REPOSITORY$/it/stilo/G/1.0.0-PUBLIC/G-1.0.0-PUBLIC.jar!/" />
+    </CLASSES>
+    <JAVADOC>
+      <root url="jar://$MAVEN_REPOSITORY$/it/stilo/G/1.0.0-PUBLIC/G-1.0.0-PUBLIC-javadoc.jar!/" />
+    </JAVADOC>
+    <SOURCES>
+      <root url="jar://$MAVEN_REPOSITORY$/it/stilo/G/1.0.0-PUBLIC/G-1.0.0-PUBLIC-sources.jar!/" />
+    </SOURCES>
+  </library>
+</component>
