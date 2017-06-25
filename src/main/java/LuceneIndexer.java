@@ -14,6 +14,8 @@ import java.util.HashSet;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.zip.GZIPInputStream;
+
+import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
 import org.apache.lucene.analysis.Analyzer;
 import org.apache.lucene.analysis.core.WhitespaceAnalyzer;
 import org.apache.lucene.analysis.standard.StandardAnalyzer;
@@ -159,9 +161,9 @@ public class LuceneIndexer {
         return results;
     }
 
-    public static HashSet<String> userIDbyQuery(String field, ArrayList<String> valuesList){
+    public static ObjectOpenHashSet<String> userIDbyQuery(String field, ArrayList<String> valuesList){
 
-        HashSet<String> results = new HashSet();
+        ObjectOpenHashSet<String> results = new ObjectOpenHashSet<>();
 
         try{
 

@@ -1,4 +1,5 @@
 import java.io.*;
+import java.nio.Buffer;
 import java.nio.file.Files;
 import java.nio.file.OpenOption;
 import java.nio.file.Paths;
@@ -9,7 +10,10 @@ import java.io.IOException;
 import java.text.SimpleDateFormat;
 
 import com.google.common.math.StatsAccumulator;
+import it.unimi.dsi.fastutil.doubles.DoubleOpenHashSet;
+import it.unimi.dsi.fastutil.ints.IntOpenHashSet;
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
+import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
 import net.seninp.jmotif.sax.SAXException;
 import net.seninp.jmotif.sax.SAXProcessor;
 import net.seninp.jmotif.sax.alphabet.NormalAlphabet;
@@ -48,7 +52,7 @@ public abstract class SBN {
 
         while((name= br_names.readLine()) != null && (id= br_IDs.readLine()) != null){
             ArrayList<Document> documents = LuceneIndexer.queryOnField("userID", id);
-            classifyUser(documents, name, id);
+            classifyPolitician(documents, name, id);
         }
 
         /***Runtime rt = Runtime.getRuntime();
@@ -58,7 +62,7 @@ public abstract class SBN {
 
     }
 
-    public static void classifyUser(ArrayList<Document> documents, String name, String id) throws IOException {
+    public static void classifyPolitician(ArrayList<Document> documents, String name, String id) throws IOException {
         ArrayList<String> yHash = new ArrayList<>(); yHash.add("iovotosi"); yHash.add("bastaunsi"); yHash.add("sì"); yHash.add("si"); yHash.add("iohovotatosi");
         ArrayList<String> nHash = new ArrayList<>(); nHash.add("iovotono");  nHash.add("iodicono"); nHash.add("no"); nHash.add("votano");
         ArrayList<String> finalHash;
@@ -309,8 +313,16 @@ public abstract class SBN {
         ArrayList<String> yesCore = U.fetchArrayList("out/noCore");
         ArrayList<String> noCore = U.fetchArrayList("out/yesCore");
 
-        timeSeriesBuilder(yesCore, 3);
-        timeSeriesBuilder(noCore, 3);
+        Object2ObjectOpenHashMap [] yesTS = timeSeriesBuilder(yesCore, 3);
+        Object2ObjectOpenHashMap [] noTS = timeSeriesBuilder(noCore, 3);
+
+        double significance = 0.5;
+
+        for (int i = 0; i < yesTS.length ; i++) {
+            for (int j = 0; j < noTS.length ; j++) {
+                if(crossCorrelation(yesTS[i], noTS[i])>significance);
+            }
+        }
 
 
     }
@@ -318,7 +330,45 @@ public abstract class SBN {
 
     /*** EXERCISE 1.1 ***/
 
-    public static void 
+    public static DoubleOpenHashSet getPoliticians(String FILENAME) throws IOException {
+        String line; String [] words;
+        DoubleOpenHashSet politicians = new DoubleOpenHashSet();
+
+        BufferedReader br = getBufferedReader(FILENAME);
+        while((line=br.readLine())!=null){
+            words = line.split(",");
+            politicians.add(Double.parseDouble(words[1]));
+        }
+
+        return politicians;
+    }
+    public static void getPartisans(ArrayList<String> politicians, ArrayList<String> keywords) throws IOException {
+
+        ObjectOpenHashSet<String> ids = LuceneIndexer.userIDbyQuery("mentions", politicians);
+        ids.addAll(LuceneIndexer.userIDbyQuery("mentions", politicians));
+
+        System.out.println(ids.size());
+        U.storeArrayList(new ArrayList<>(ids), getBufferedWriter("out/musers", false));
+    }
+
+    public static void getPartisansTweets(ArrayList<String> partisans) throws IOException {
+        String [] tweetText; BufferedWriter bwTweet = getBufferedWriter("out/partisanTweets", false);
+        ArrayList<String[]> partisanTweets = new ArrayList<>();
+        for (String partisan : partisans) {
+            ArrayList<Document> documents = LuceneIndexer.queryOnField("userID", partisan);
+            for (Document d: documents) {
+                tweetText = U.stem(d.getField("tweetText").toString());
+                U.storeArrayList(Arrays.asList(tweetText), bwTweet);
+
+            }
+        }
+        bwTweet.close();
+    }
+
+    public static void classifyPartisan(){
+
+    }
+
 
 
 
