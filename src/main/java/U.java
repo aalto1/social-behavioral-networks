@@ -5,6 +5,7 @@ import java.io.*;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.zip.GZIPInputStream;
 
 /**
  * Created by aalto on 6/24/17.
@@ -44,6 +45,10 @@ public class U {
         return new BufferedReader(new FileReader(FILENAME));
     }
 
+    static BufferedReader getCompressedBufferedReader(String FILENAME) throws IOException {
+        return new BufferedReader(new InputStreamReader(new GZIPInputStream(new FileInputStream(FILENAME)));
+    }
+
     static BufferedWriter getBufferedWriter(String FILENAME, Boolean append) throws IOException {
         if(append == true){
             return new BufferedWriter(new FileWriter(FILENAME, true));
@@ -51,6 +56,5 @@ public class U {
             return new BufferedWriter(new FileWriter(FILENAME));
         }
     }
-
 
 }

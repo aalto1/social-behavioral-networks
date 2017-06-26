@@ -109,7 +109,7 @@ public class fastUGraph extends WeightedUndirectedGraph {
 
 
     private void computeLargestCC(){
-        ArrayList<Integer> lccArray = new ArrayList();
+        ArrayList<Integer> lccArray;
         try {
             int max = -1;
             IntOpenHashSet tmpLCC = null;

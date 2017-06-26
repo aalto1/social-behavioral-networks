@@ -1,7 +1,5 @@
 import java.io.*;
-import java.nio.Buffer;
 import java.nio.file.Files;
-import java.nio.file.OpenOption;
 import java.nio.file.Paths;
 import java.util.*;
 import java.io.BufferedReader;
@@ -12,17 +10,16 @@ import java.text.SimpleDateFormat;
 import com.google.common.math.StatsAccumulator;
 import it.unimi.dsi.fastutil.doubles.DoubleOpenHashSet;
 import it.unimi.dsi.fastutil.ints.IntOpenHashSet;
-import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
-import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
+import it.unimi.dsi.fastutil.longs.Long2LongAVLTreeMap;
+import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
+import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
+import it.unimi.dsi.fastutil.objects.*;
 import net.seninp.jmotif.sax.SAXException;
 import net.seninp.jmotif.sax.SAXProcessor;
 import net.seninp.jmotif.sax.alphabet.NormalAlphabet;
 import net.seninp.jmotif.sax.datastructure.SAXRecords;
 
 import org.apache.lucene.document.Document;
-
-
-import it.unimi.dsi.fastutil.objects.Object2IntOpenHashMap;
 
 /**
  * Created by aalto on 1/25/17.
@@ -328,7 +325,7 @@ public abstract class SBN {
     }
 
 
-    /*** EXERCISE 1.1 ***/
+    /*** EXERCISE 1.1  get the twitter id of politicians***/
 
     public static DoubleOpenHashSet getPoliticians(String FILENAME) throws IOException {
         String line; String [] words;
@@ -342,13 +339,15 @@ public abstract class SBN {
 
         return politicians;
     }
+
+
     public static void getPartisans(ArrayList<String> politicians, ArrayList<String> keywords) throws IOException {
 
         ObjectOpenHashSet<String> ids = LuceneIndexer.userIDbyQuery("mentions", politicians);
         ids.addAll(LuceneIndexer.userIDbyQuery("mentions", politicians));
 
         System.out.println(ids.size());
-        U.storeArrayList(new ArrayList<>(ids), getBufferedWriter("out/musers", false));
+        U.storeArrayList(new ArrayList<>(ids), getBufferedWriter("out/M", false));
     }
 
     public static void getPartisansTweets(ArrayList<String> partisans) throws IOException {
@@ -365,9 +364,143 @@ public abstract class SBN {
         bwTweet.close();
     }
 
-    public static void classifyPartisan(){
+    /***Exercise 1.2 partisans LCC***/
+
+    /**
+     * This method computes a CustomDirectedGraph induced by a list of users given in input.
+     * @param userMentionsFile The list of users that induce the output graph
+     * @param fileGraph The file where the original graph is located at
+     * @return
+     * @throws FileNotFoundException
+     * @throws IOException
+     */
+    public fastDGraph getInducedGraph(String userMentionsFile, LongOpenHashSet partisansID, String FILENAME)
+            throws IOException{
+
+        //graph edge list
+        BufferedReader br = U.getCompressedBufferedReader(FILENAME);
+        fastDGraph g = new fastDGraph(partisansID.size()+1, partisansID, br);
+        ArrayList<Integer> lcc =  g.getLCC();
 
     }
+
+
+    /***Exercise 1.3 classify the partisans***/
+
+    public static void classifyPartisan(LongOpenHashSet partisans) throws IOException {
+        for (Long id: partisans) {
+            ArrayList<Document> documents = LuceneIndexer.queryOnField("userID", ""+id);
+            classifyPolitician(documents, "GEEENO", ""+id);
+
+        }
+
+    }
+
+    public static void partisanIdentikit(){
+
+    }
+
+
+    /*** For each politician find the top most active follower***/
+
+    public static void getInfluencersPerPolitician(LongOpenHashSet politicians, ObjectOpenHashSet<Partisan> partisans){
+        Long2ObjectOpenHashMap<ArrayList<Long>> influencers = new Long2ObjectOpenHashMap<>();
+        Object2LongAVLTreeMap<String> sortedAuxMap = new Object2LongAVLTreeMap<>();
+        Long l = 1L;
+        for(long politician : politicians){
+            ArrayList<Document> mentioned = LuceneIndexer.queryOnField("mentions", ""+politician);
+            for(Document tweet : mentioned){
+                if (sortedAuxMap.putIfAbsent(tweet.get("userID"), l)!=null) sortedAuxMap.merge(tweet.get("userID"), l, Long::sum);
+            }
+            influencers.put(politician, new ArrayList<Long>(sortedAuxMap.keySet()));
+        }
+        storeHashMap(influencers);
+    }
+
+
+
+
+
+
+    /***Get the most important influencers with MIXED or Pure***/
+
+    public static ArrayList<Long> getInfluencers(ObjectOpenHashSet<Partisan> partisans, boolean mixed){
+        long [][] influencerRanking = new long[partisans.size()][2];
+        int k = 0;
+        long score;
+
+        for (Partisan p : partisans) {
+            influencerRanking[k][0]= p.id;
+            if(mixed)
+                score =  p.authority+Math.abs(p.noScore-p.yesScore);
+            else
+                score =  p.authority;
+            influencerRanking[k++][1] =score;
+        }
+
+        Arrays.parallelSort(influencerRanking, new Comparator<long[]>() {
+            @Override
+            public int compare(long[] o1, long[] o2) {
+                return -Long.compare(o1[1],o2[1]);
+            }
+        });
+        ArrayList<Long> influencers = new ArrayList<>();
+        for (int i = 0; i < 500; i++) influencers.add(influencerRanking[i][0]);
+
+        return influencers;
+
+    }
+
+    public static ArrayList<String> getKPPNEGTopPlayers(fastDGraph g, ObjectOpenHashSet<Partisan> partisans) throws IOException, InterruptedException {
+        return g.getKPPNEG(partisans);
+    }
+
+    /*** EXERCISE 2.1 ***/
+
+    public static void theWinnerIS(){
+        int cores = Runtime.getRuntime().availableProcessors();
+        byte[] labels;
+
+        fastDGraph g = new fastDGraph();
+
+        //authorities
+        IntOpenHashSet yPartisan = fetchHashMap(), nPartisan = fetchHashMap();
+        labels = BinaryComunityLPA.compute(g, 0.9, cores, yPartisan, nPartisan );
+        scrutiny(labels);
+
+        //mixedranking
+        IntOpenHashSet yPartisan = fetchHashMap(), nPartisan = fetchHashMap();
+        labels = BinaryComunityLPA.compute(g, 0.9, cores, yPartisan, nPartisan );
+        scrutiny(labels);
+
+        //KPPNEG
+        IntOpenHashSet yPartisan = fetchHashMap(), nPartisan = fetchHashMap();
+        labels = BinaryComunityLPA.compute(g, 0.9, cores, yPartisan, nPartisan );
+        scrutiny(labels);
+
+
+
+    }
+
+    public static void scrutiny(byte [] labels){
+        int y = 0;
+        for(byte l : labels){
+            if (l==1) y++;
+        }
+        int n = y-labels.length;
+
+        System.out.println("YES: " + y);
+        System.out.println("NO: " + n);
+
+        if(y>n)
+            System.out.println("The YES won." );
+        else if(n<y)
+            System.out.println("The NO won.");
+        else
+            System.out.println("DRAW!");
+    }
+
+
 
 
 
@@ -424,50 +557,3 @@ public abstract class SBN {
     }
 }
 
-
-/***
- * public static Object2ObjectOpenHashMap [] timeSeriesBuilder(String [] nTop1000, String [] yTop1000) throws IOException {
- BufferedReader br_IDs = getBufferedReader("data/0-1/screennames_ID.txt");
- ArrayList<String> yHash = new ArrayList<>(); yHash.add("iovotosi"); yHash.add("bastaunsi"); yHash.add("sì"); yHash.add("si"); yHash.add("iohovotatosi");
- ArrayList<String> nHash = new ArrayList<>(); nHash.add("iovotono");  nHash.add("iodicono"); nHash.add("no"); nHash.add("votano");
- String [] tweetText; String id;
- Object2ObjectOpenHashMap<String,ArrayList<Double>> timeSeries00_11 = new Object2ObjectOpenHashMap<>();
- Object2ObjectOpenHashMap<String,ArrayList<Double>> timeSeries12_23 = new Object2ObjectOpenHashMap<>();
- ArrayList<Double> aux;
-
- while((id= br_IDs.readLine()) != null){
- ArrayList<Document> documents = LuceneIndexer.queryOnField("userID", id);
-
- for (Document d: documents) {
- Boolean relevant = false;
- for(String s: d.getValues("hashtags")) {
- if(yHash.contains(s.toLowerCase()) | nHash.contains(s.toLowerCase())) {
- relevant = true; break;
- }
- }
- if(relevant){
- tweetText = d.getField("tweetText").toString().replaceAll("[^a-zA-Z ]", "").toLowerCase().split("\\s+");
- Double date = Double.parseDouble(new SimpleDateFormat("ddMMyyyyhhmm").format(new Date(Long.parseLong(d.get("creationDateMills")))));
- //Double date = Double.parseDouble(d.get("creationDateMills"));
- String sdate = String.valueOf(date);
- if(Integer.parseInt(sdate.substring(sdate.length()-7, sdate.length()-5))<12) {
- for (String word : tweetText) {
- timeSeries00_11.putIfAbsent(word, new ArrayList<>());
- timeSeries00_11.get(word).add(date);
- }
- }else{
- for (String word: tweetText) {
- timeSeries12_23.putIfAbsent(word, new ArrayList<>());
- timeSeries12_23.get(word).add(date);
- }
- }
- }
- }
-
- }
- System.out.println(timeSeries00_11.size());
- System.out.println(timeSeries12_23.size());
- System.out.println(timeSeries00_11.keySet());
- Object2ObjectOpenHashMap [] ts = new Object2ObjectOpenHashMap [] {timeSeries00_11,timeSeries12_23};
- return ts;
- }***/
